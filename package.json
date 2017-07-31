@@ -1,0 +1,19 @@
+{
+  "name": "naive-express",
+  "version": "1.0.0",
+  "description": "naive version of expressjs",
+  "main": "test.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rhapsodyn/naive-express.git"
+  },
+  "author": "rhapsodyn",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/rhapsodyn/naive-express/issues"
+  },
+  "homepage": "https://github.com/rhapsodyn/naive-express#readme"
+}
