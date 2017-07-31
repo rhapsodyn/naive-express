@@ -4,40 +4,39 @@ class RouterLayer {
     constructor(path, fn) {
         this.path = path;
         this.fn = fn;
-
+        
     }
-
+    
     handle(req, res, next) {
         this.fn(req, res, next);
-
         return res.done;
     }
-
+    
     match(path) {
         return true;
     }
 }
 
-class ReqWrapper {
+class Request {
     constructor(req) {
         this.raw = req;
     }
-
+    
     get originalUrl() {
-
+        return this.raw.url;
     }
-
+    
     get url() {
-
+        
     }
 }
 
-class ResWrapper {
+class Response {
     constructor(res) {
         this.raw = res;
         this.done = false;
     }
-
+    
     send(msg) {
         this.done = true;
         this.raw.end(msg + '\n');
@@ -53,11 +52,11 @@ function createApp(name) {
         let done = _routerStack.length === 0;
 
         function next() {
-            while (!done && idx < _routerStack.length - 1) {
+            while (!done && idx < _routerStack.length) {
                 let layer = _routerStack[idx++];
 
-                if (layer.match(resWrapper.url)) {
-                    done = layer.handle(reqWrapper, resWrapper, next);
+                if (layer.match(res.url)) {
+                    done = layer.handle(req, res, next);
                 }
             }
         }
@@ -67,9 +66,9 @@ function createApp(name) {
 
     let app = (req, res, next) => {
         console.log('go through root: ' + _name);
-        next();
 
         dispatch(req, res);
+        next();
     };
 
     app.use = (path, fn) => {
@@ -84,8 +83,8 @@ function createApp(name) {
 
     app.listen = port => {
         http.createServer((req, res) => {
-            let reqWrapper = new ReqWrapper(req);
-            let resWrapper = new ResWrapper(res);
+            let reqWrapper = new Request(req);
+            let resWrapper = new Response(res);
 
             dispatch(reqWrapper, resWrapper);
         }).listen(port);

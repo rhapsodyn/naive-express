@@ -1,9 +1,9 @@
 const App = require('./app');
-const main = App('main');
-const router = App('router');
+const main = new App('main');
+const router = new App('router');
 
 function send(req, res) {
-    res.send(`url: ${req.url} originalUrl: ${req.originalUrl} userData: ${req.userData}`);
+    res.send(`url: ${req.url} \n originalUrl: ${req.originalUrl} \n userData: ${req.userData}`);
 }
 
 main.use((req, res, next) => {
