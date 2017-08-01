@@ -4,59 +4,88 @@ class RouterLayer {
     constructor(path, fn) {
         this.path = path;
         this.fn = fn;
-        
     }
-    
-    handle(req, res, next) {
-        this.fn(req, res, next);
-        return res.done;
+
+    handle(req, res, next, prefix) {
+        let fn = this.fn;
+
+        if (fn instanceof Application) {
+            fn.handle(req, res, next, prefix);
+        } else {
+            fn(req, res, next);
+        }
     }
-    
-    match(path) {
-        return true;
+
+    // match with startsWith
+    match(req) {
+        let source = this.path;
+        let target = req.url;
+
+        console.log(`to match: source= ${source} target= ${target}   ${target.startsWith(source)}`);
+
+        return target.startsWith(source);
     }
 }
 
 class Request {
     constructor(req) {
         this.raw = req;
+        this.prefix = '';
     }
-    
+
     get originalUrl() {
         return this.raw.url;
     }
-    
+
+    // express-way url
     get url() {
-        
+        let rawUrl = this.raw.url;
+        let pref = this.prefix;
+
+        return rawUrl.substring(pref.length, rawUrl.length);
     }
 }
 
 class Response {
     constructor(res) {
         this.raw = res;
-        this.done = false;
     }
-    
+
     send(msg) {
-        this.done = true;
         this.raw.end(msg + '\n');
     }
 }
 
-function createApp(name) {
-    let _routerStack = [];
-    let _name = name;
+// router stack looks like this:
+// root - handler - router - handler - 404
+//                    |
+//                  handler - handler - router - handler
+//                                        |
+//                                      handler
+//
+// go depth-first
+class Application {
+    constructor(name) {
+        this.name = name;
+        this.routerStack = [];
+    }
 
-    function dispatch(req, res) {
+    dispatch(req, res) {
+        console.log(this.name + ' start to dispatch');
+
         let idx = 0;
-        let done = _routerStack.length === 0;
+        let stack = this.routerStack;
 
         function next() {
-            while (!done && idx < _routerStack.length) {
-                let layer = _routerStack[idx++];
+            if (idx < stack.length) {
+                let layer = stack[idx++];
 
-                if (layer.match(res.url)) {
-                    done = layer.handle(req, res, next);
+                if (layer.match(req)) {
+                    // goto handler
+                    layer.handle(req, res, next, layer.path);
+                } else {
+                    // try next
+                    next();
                 }
             }
         }
@@ -64,35 +93,49 @@ function createApp(name) {
         next();
     }
 
-    let app = (req, res, next) => {
-        console.log('go through root: ' + _name);
+    // works like a handler
+    handle(req, res, next, prefix) {
+        console.log(`go through root: ${this.name} with prefix: ${prefix}`);
 
-        dispatch(req, res);
+        // routes deeper, prefix gets longer
+        let oldPrefix = req.prefix;
+        req.prefix += prefix;
+
+        this.dispatch(req, res);
+
+        // comes back
+        req.prefix = oldPrefix;
+        // and go on
         next();
-    };
+    }
 
-    app.use = (path, fn) => {
+    // use a handler or another app
+    use(path, fn) {
         if (!fn) {
             fn = path;
+            // '' matchs every path
             path = '';
         }
 
-        console.log(`new router: ${path} on: ${_name}`);
-        _routerStack.push(new RouterLayer(path, fn));
-    };
+        console.log(`new router: ${path} on: ${this.name}`);
+        this.routerStack.push(new RouterLayer(path, fn));
+    }
 
-    app.listen = port => {
+    listen(port) {
+        // finalHandler
+        this.routerStack.push(new RouterLayer('', (req, res) => {
+            res.send('404');
+        }));
+
         http.createServer((req, res) => {
-            let reqWrapper = new Request(req);
-            let resWrapper = new Response(res);
+            let reqwrapper = new Request(req);
+            let reswrapper = new Response(res);
 
-            dispatch(reqWrapper, resWrapper);
+            this.dispatch(reqwrapper, reswrapper);
         }).listen(port);
 
         console.log('listening on: ' + port);
-    };
-
-    return app;
+    }
 }
 
-module.exports = createApp;
+module.exports = Application;
